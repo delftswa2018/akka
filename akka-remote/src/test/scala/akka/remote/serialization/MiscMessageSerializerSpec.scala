@@ -83,6 +83,8 @@ class MiscMessageSerializerSpec extends AkkaSpec(MiscMessageSerializerSpec.testC
       "None" → None,
       "Optional.present" → Optional.of("value2"),
       "Optional.empty" → Optional.empty(),
+      "Either.Left" → Left("value3"),
+      "Either.Right" → Right("value4"),
       "Kill" → Kill,
       "PoisonPill" → PoisonPill,
       "RemoteWatcher.Heartbeat" → RemoteWatcher.Heartbeat,

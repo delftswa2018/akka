@@ -40,6 +40,8 @@ class MiscMessageSerializer(val system: ExtendedActorSystem) extends SerializerW
     case r: ActorRef                          ⇒ serializeActorRef(r)
     case s: Status.Success                    ⇒ serializeStatusSuccess(s)
     case f: Status.Failure                    ⇒ serializeStatusFailure(f)
+    case l: Left[_,_]                         ⇒ serializeEitherLeft(l)
+    case r: Right[_,_]                        ⇒ serializeEitherRight(r)
     case ex: ActorInitializationException     ⇒ serializeActorInitializationException(ex)
     case t: Throwable                         ⇒ throwableSupport.serializeThrowable(t)
     case PoisonPill                           ⇒ ParameterlessSerializedMessage
@@ -122,6 +124,13 @@ class MiscMessageSerializer(val system: ExtendedActorSystem) extends SerializerW
 
   private def serializeStatusFailure(failure: Status.Failure): Array[Byte] =
     payloadSupport.payloadBuilder(failure.cause).build().toByteArray
+
+  private def serializeEitherLeft(left: Left[_,_]) =
+    payloadSupport.payloadBuilder(left.a).build().toByteArray
+
+  private def serializeEitherRight(right: Right[_,_]) =
+    payloadSupport.payloadBuilder(right.b).build().toByteArray
+
 
   private def serializeActorInitializationException(ex: ActorInitializationException): Array[Byte] = {
     val builder = ContainerFormats.ActorInitializationException.newBuilder()
@@ -284,6 +293,8 @@ class MiscMessageSerializer(val system: ExtendedActorSystem) extends SerializerW
   private val ThrowableManifest = "F"
   private val ActorRefManifest = "G"
   private val OptionalManifest = "H"
+  private val EitherLeftManifest = "EL"
+  private val EitherRightManifest = "ER"
   private val PoisonPillManifest = "P"
   private val KillManifest = "K"
   private val RemoteWatcherHBManifest = "RWHB"
@@ -315,6 +326,8 @@ class MiscMessageSerializer(val system: ExtendedActorSystem) extends SerializerW
     ActorRefManifest → deserializeActorRefBytes,
     OptionManifest → deserializeOption,
     OptionalManifest → deserializeOptional,
+    EitherLeftManifest → deserializeEitherLeft,
+    EitherRightManifest → deserializeEitherRight,
     PoisonPillManifest → ((_) ⇒ PoisonPill),
     KillManifest → ((_) ⇒ Kill),
     RemoteWatcherHBManifest → ((_) ⇒ RemoteWatcher.Heartbeat),
@@ -346,6 +359,8 @@ class MiscMessageSerializer(val system: ExtendedActorSystem) extends SerializerW
       case _: ActorRef                        ⇒ ActorRefManifest
       case _: Status.Success                  ⇒ StatusSuccessManifest
       case _: Status.Failure                  ⇒ StatusFailureManifest
+      case _: Left[_,_]                       ⇒ EitherLeftManifest
+      case _: Right[_,_]                      ⇒ EitherRightManifest
       case _: ActorInitializationException    ⇒ ActorInitializationExceptionManifest
       case _: Throwable                       ⇒ ThrowableManifest
       case PoisonPill                         ⇒ PoisonPillManifest
@@ -418,6 +433,12 @@ class MiscMessageSerializer(val system: ExtendedActorSystem) extends SerializerW
       Optional.of(payloadSupport.deserializePayload(optionProto.getValue))
     }
   }
+
+  private def deserializeEitherLeft(bytes: Array[Byte]): Left[Any,Any] =
+    Left(payloadSupport.deserializePayload(ContainerFormats.Payload.parseFrom(bytes)))
+
+  private def deserializeEitherRight(bytes: Array[Byte]): Right[Any,Any] =
+    Right(payloadSupport.deserializePayload(ContainerFormats.Payload.parseFrom(bytes)))
 
   private def deserializeStatusSuccess(bytes: Array[Byte]): Status.Success =
     Status.Success(payloadSupport.deserializePayload(ContainerFormats.Payload.parseFrom(bytes)))
